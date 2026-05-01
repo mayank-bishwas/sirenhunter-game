@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO -->
+  <title>Siren Hunter - 7 Wonders. 7 Sirens: Free Game</title>
+  <meta name="description" content="Navigate the 7 Wonders of World in Google Street View to find hidden sirens. Free to play." />
+  <meta name="keywords" content="siren hunter, 7 wonders game, street view game, exploration game, vibejam 2026" />
+  <link rel="canonical" href="https://sirenhunter-game.vercel.app" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Siren Hunter - 7 Wonders. 7 Sirens: Free Game" />
+  <meta property="og:description" content="Navigate the 7 Wonders of World in Google Street View to find hidden sirens. Free to play." />
+  <meta property="og:image" content="https://sirenhunter-game.vercel.app/images/og-cover.png" />
+  <meta property="og:url" content="https://sirenhunter-game.vercel.app" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Siren Hunter - 7 Wonders. 7 Sirens: Free Game" />
+  <meta name="twitter:description" content="Navigate the 7 Wonders of World in Google Street View to find hidden sirens. Free to play." />
+  <meta name="twitter:image" content="https://sirenhunter-game.vercel.app/images/og-cover.png" />
+  <meta name="twitter:creator" content="@Mayank_Bishwas" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="images/bust.png" />
+  <link rel="apple-touch-icon" href="images/bust.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Engagement&family=Della+Respira&family=Estonia&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+  <script>function onGoogleMapsReady() { window._mapsReady = true; }</script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCtQwVDajR5lePqlevtfPMvnEz9IJbGbEM&callback=onGoogleMapsReady" defer></script>
+</head>
+<body>
+
+  <!-- Small loader overlay (pulsing logo while Street View initialises) -->
+  <div id="loader" class="hidden">
+    <img src="images/logo.png" id="loader-logo" />
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  SCREEN 1: HOME                             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="screen-home" class="screen active">
+    <div class="home-bg"></div>
+    <canvas class="stars-canvas"></canvas>
+
+    <div class="home-logo">
+      <img src="images/logo.png" alt="Siren Hunter VII" class="home-logotype" />
+    </div>
+
+    <p class="home-tagline">
+      The 7 Wonders of the World hide 7 ancient sirens.<br />
+      Hunt them all within 7 minutes each.
+    </p>
+
+    <button class="btn-primary" onclick="startSession()">Begin Hunt</button>
+
+    <p id="mobile-warning">⚠️ Mobile version of this game being built. While you can play it here, it's <strong>better experienced on a&nbsp;laptop/desktop</strong>.</p>
+
+    <p class="home-credit">Made for <a href="https://vibej.am/2026/" target="_blank" rel="noopener">VibeJam</a> by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  SCREEN 2: WONDER LOADER (7-second intro)   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="screen-loader" class="screen">
+    <img id="loader-bg-img" src="" alt="" class="loader-bg-img" />
+    <div class="loader-overlay"></div>
+
+    <div class="loader-body">
+      <div id="loader-countdown">7</div>
+      <div id="loader-wonder-name">TAJ MAHAL, INDIA</div>
+    </div>
+
+    <p class="home-credit">Made for <a href="https://vibej.am/2026/" target="_blank" rel="noopener">VibeJam</a> by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  SCREEN 3: GAME                             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="screen-game" class="screen">
+    <div id="map"></div>
+
+    <!-- HUD: top-left -->
+    <div id="game-hud">
+      <span class="hud-pill">⏳ <span id="hud-timer">07:00</span></span>
+      <span class="hud-pill">💎 <span id="hud-score">0000</span></span>
+    </div>
+
+    <!-- Bottom-center controls -->
+    <div id="game-controls">
+      <div class="ctrl-pill sound-active" id="ctrl-pill">
+        <div class="ctrl-pill-bg"></div>
+        <button class="ctrl-sound-btn" onclick="setAudioMode('sound')">
+          <img src="images/sound.png" alt="sound" />
+        </button>
+        <button class="ctrl-radar-btn" onclick="setAudioMode('radar')">
+          <img src="images/radar.png" alt="radar" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Flavour text — timed cycle, independent of toggle -->
+    <p id="city-desc" class="city-desc hidden"></p>
+
+    <!-- Bottom-right actions -->
+    <div id="game-actions">
+      <button id="btn-quit" class="action-btn" onclick="pauseGame()" title="Quit">⏻</button>
+    </div>
+
+    <!-- Radar canvas: bottom-left, hidden until toggled -->
+    <canvas id="radar-canvas" class="hidden" width="150" height="150"></canvas>
+
+    <!-- ── OVERLAY: SIREN HUNTED ── -->
+    <div id="overlay-siren-hunted" class="game-overlay hidden">
+      <div class="overlay-card green">
+        <img src="images/logo.png" class="overlay-icon" />
+        <h2 class="overlay-title">Siren Hunted</h2>
+        <p class="overlay-stats">⏳ <span id="win-time">--:--</span> &nbsp; 💎 <span id="win-score">----</span></p>
+        <p class="overlay-desc" id="win-desc"></p>
+        <a class="overlay-feedback" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Give feedback to Mayank</a>
+      </div>
+      <div class="overlay-btns">
+        <button class="btn-overlay" onclick="restartWonder()">Replay</button>
+        <button class="btn-overlay" onclick="goNextWonder()">Next</button>
+      </div>
+    </div>
+
+    <!-- ── OVERLAY: HUNT FAILED ── -->
+    <div id="overlay-hunt-failed" class="game-overlay hidden">
+      <div class="overlay-card red">
+        <span class="overlay-emoji">🚨</span>
+        <h2 class="overlay-title">Hunt Failed</h2>
+        <p class="overlay-stats">⏳ <span id="fail-time">00:00</span> &nbsp; 💎 <span id="fail-score">0000</span></p>
+        <p class="overlay-desc" id="fail-desc"></p>
+        <a class="overlay-feedback" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Give feedback to Mayank</a>
+      </div>
+      <div class="overlay-btns">
+        <button class="btn-overlay" onclick="quitToHome()">Home</button>
+        <button class="btn-overlay" onclick="retryWonder()">Retry</button>
+      </div>
+    </div>
+
+    <!-- ── OVERLAY: LEAVE HUNT ── -->
+    <div id="overlay-leave-hunt" class="game-overlay hidden">
+      <div class="overlay-card gold">
+        <span class="overlay-emoji">🗿</span>
+        <h2 class="overlay-title">Leave Hunt?</h2>
+        <p class="overlay-stats">⏳ <span id="quit-time">--:--</span> &nbsp; 💎 <span id="quit-score">----</span></p>
+        <p class="overlay-desc" id="quit-desc"></p>
+        <a class="overlay-feedback" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Give feedback to Mayank</a>
+      </div>
+      <div class="overlay-btns">
+        <button class="btn-overlay" onclick="resumeGame()">Continue</button>
+        <button class="btn-overlay" onclick="quitToHome()">Quit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  SCREEN 4: FINAL (all 7 hunted)             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="screen-final" class="screen">
+    <div class="home-bg"></div>
+    <canvas class="stars-canvas"></canvas>
+
+    <div class="final-content">
+      <img src="images/logo.png" class="final-logo" alt="Siren Hunter VII" />
+      <h1 class="final-title">All Sirens Hunted</h1>
+      <p class="final-stats">⏳ <span id="final-time">--:--</span> &nbsp; 💎 <span id="final-score">----</span></p>
+
+      <div id="transmission-lines" class="transmission-container"></div>
+
+      <div class="overlay-btns final-btns hidden">
+        <button class="btn-overlay" onclick="quitToHome()">Home</button>
+        <a class="btn-overlay" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Feedback</a>
+      </div>
+    </div>
+
+    <p class="home-credit">Made for <a href="https://vibej.am/2026/" target="_blank" rel="noopener">VibeJam</a> by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+  </div>
+
+  <script src="data/wonders.js"></script>
+  <script src="js/game.js"></script>
+  <script async src="https://vibej.am/2026/widget.js"></script>
+</body>
+</html>
