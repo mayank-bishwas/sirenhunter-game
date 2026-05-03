@@ -67,6 +67,7 @@ let lastPingTime = 0;
 ══════════════════════════════════════════════════════════════════ */
 function startSession() {
   if (pageWonderQueue.length === 0) pageWonderQueue = shuffleArray([...WONDERS]);
+  new Image().src = pageWonderQueue[0].image;
   gameState.sessionQueue   = [...pageWonderQueue];
   gameState.sessionIndex   = 0;
   gameState.sessionScore   = 0;
@@ -97,6 +98,7 @@ function goNextWonder() {
     showFinalScreen();
     return;
   }
+  if (pageWonderQueue.length > 1) new Image().src = pageWonderQueue[1].image;
   enterWonder(pageWonderQueue[0]);
 }
 
