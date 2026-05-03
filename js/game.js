@@ -16,6 +16,8 @@ const FLAVOUR_GAP_MS      = 30000; // 30s between flavour lines
 const FLAVOUR_HOLD_MS     = 10000; // 10s visible
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
+let pageWonderQueue = []; // persists for page lifetime — ensures no repeats until all 7 seen
+
 /* ── GAME STATE ─────────────────────────────────────────────────── */
 const gameState = {
   // Session
@@ -64,11 +66,13 @@ let lastPingTime = 0;
    SESSION MANAGEMENT
 ══════════════════════════════════════════════════════════════════ */
 function startSession() {
-  gameState.sessionQueue   = shuffleArray([...WONDERS]);
+  if (pageWonderQueue.length === 0) pageWonderQueue = shuffleArray([...WONDERS]);
+  gameState.sessionQueue   = [...pageWonderQueue];
   gameState.sessionIndex   = 0;
   gameState.sessionScore   = 0;
   gameState.sessionSeconds = 0;
-  enterWonder(gameState.sessionQueue[0]);
+  gameState.score          = 0;
+  enterWonder(pageWonderQueue[0]);
 }
 
 function shuffleArray(arr) {
@@ -81,18 +85,19 @@ function shuffleArray(arr) {
 
 /* ── goNextWonder: advance session; check if all 7 done ─────────── */
 function goNextWonder() {
-  // Accumulate before moving on
   gameState.sessionScore   += gameState.score;
   gameState.sessionSeconds += (gameState.currentWonder?.timeLimit || 420) - gameState.secondsLeft;
+  gameState.score           = 0;
 
   hideOverlay();
+  pageWonderQueue.shift(); // remove completed wonder from page-level queue
   gameState.sessionIndex++;
 
-  if (gameState.sessionIndex >= WONDERS.length) {
+  if (pageWonderQueue.length === 0) {
     showFinalScreen();
     return;
   }
-  enterWonder(gameState.sessionQueue[gameState.sessionIndex]);
+  enterWonder(pageWonderQueue[0]);
 }
 
 /* ── retryWonder: keep score, reset timer ───────────────────────── */
@@ -212,15 +217,17 @@ function enterWonder(wonder) {
   // Pre-resolve panorama during countdown; if ready early, burn remaining numbers fast
   if (window._mapsReady) {
     const svc = new google.maps.StreetViewService();
-    svc.getPanorama({ location: { lat: wonder.startLat, lng: wonder.startLng }, radius: 250 }, (data, status) => {
-      if (status === google.maps.StreetViewStatus.OK && data?.location?.pano) {
-        earlyPanoId = data.location.pano;
-        if (count > 1) {
-          clearInterval(tickId);
-          tickId = setInterval(tick, 220);
+    const tryPreResolve = (radius) => {
+      svc.getPanorama({ location: { lat: wonder.startLat, lng: wonder.startLng }, radius }, (data, status) => {
+        if (status === google.maps.StreetViewStatus.OK && data?.location?.pano) {
+          earlyPanoId = data.location.pano;
+          if (count > 1) { clearInterval(tickId); tickId = setInterval(tick, 220); }
+        } else if (status !== google.maps.StreetViewStatus.OK && radius < 1000) {
+          tryPreResolve(1000);
         }
-      }
-    });
+      });
+    };
+    tryPreResolve(500);
   }
 
   tickId = setInterval(tick, 1000);
@@ -279,24 +286,31 @@ function resolveStartPanorama(wonder, token, cb) {
   const svc        = new google.maps.StreetViewService();
   const startCoords = { lat: wonder.startLat, lng: wonder.startLng };
 
+  const resolveByLocation = (radius, done) => {
+    svc.getPanorama({ location: startCoords, radius }, (data, status) => {
+      if (token !== gameState.initToken) return;
+      if (status === google.maps.StreetViewStatus.OK && data?.location?.pano) {
+        done(data.location.pano, status);
+      } else if (radius < 1000) {
+        resolveByLocation(1000, done);
+      } else {
+        done(null, status);
+      }
+    });
+  };
+
   if (wonder.startPano) {
     svc.getPanorama({ pano: wonder.startPano }, (data, status) => {
       if (token !== gameState.initToken) return;
       if (status === google.maps.StreetViewStatus.OK && data?.location?.pano) {
         cb(data.location.pano, status); return;
       }
-      svc.getPanorama({ location: startCoords, radius: 250 }, (d2, s2) => {
-        if (token !== gameState.initToken) return;
-        cb(s2 === google.maps.StreetViewStatus.OK ? d2?.location?.pano : null, s2);
-      });
+      resolveByLocation(500, cb);
     });
     return;
   }
 
-  svc.getPanorama({ location: startCoords, radius: 250 }, (data, status) => {
-    if (token !== gameState.initToken) return;
-    cb(status === google.maps.StreetViewStatus.OK ? data?.location?.pano : null, status);
-  });
+  resolveByLocation(500, cb);
 }
 
 function createPanorama(wonder, panoId, token) {
@@ -319,7 +333,7 @@ function createPanorama(wonder, panoId, token) {
     clickToGo:              false,
   });
 
-  google.maps.event.trigger(gameState.panorama, 'resize');
+  // Wire listeners BEFORE triggering resize so no early-firing events are missed
   bindGameControls();
 
   const startOnce = () => {
@@ -355,7 +369,10 @@ function createPanorama(wonder, panoId, token) {
     if (pos) drawRadar(pos, wonder);
   });
 
+  google.maps.event.trigger(gameState.panorama, 'resize');
+
   setTimeout(startOnce, 2500);
+  setTimeout(startOnce, 5000);
   setTimeout(() => {
     if (token !== gameState.initToken || gameState.gameplayStarted) return;
     hideLoader();
@@ -380,7 +397,8 @@ function updateScoreFromProgress() {
   }
   const improvement = gameState.bestDistance - gameState.currentDistance;
   if (improvement >= 1) {
-    gameState.score += Math.round(improvement * 2);
+    const multiplier = gameState.volumeOn ? 2 : 1;
+    gameState.score += Math.round(improvement * multiplier);
     gameState.bestDistance = gameState.currentDistance;
     updateHUD();
   }
@@ -434,7 +452,12 @@ function bindGameControls() {
 
 function handleGameKeydown(e) {
   if (e.target?.matches?.('input, textarea')) return;
-  if (e.key === 'Escape' && isGameScreenActive()) { e.preventDefault(); pauseGame(); return; }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (!document.getElementById('instructions-modal').classList.contains('hidden')) { hideInstructions(); return; }
+    if (isGameScreenActive()) { pauseGame(); return; }
+    return;
+  }
   if (e.shiftKey && e.key.toLowerCase() === 'r' && isGameplayActive()) { e.preventDefault(); restartWonder(); return; }
   if (!isGameplayActive()) return;
   if      (e.key === ' ')          { e.preventDefault(); toggleAudioMode(); }
@@ -487,11 +510,17 @@ function stopTimer() {
   gameState.timerInterval = null;
 }
 
+function timeTaken() {
+  const taken = (gameState.currentWonder?.timeLimit || 420) - gameState.secondsLeft;
+  return String(Math.floor(taken / 60)).padStart(2, '0') + ':' + String(taken % 60).padStart(2, '0');
+}
+
 function updateHUD() {
   const m = String(Math.floor(gameState.secondsLeft / 60)).padStart(2, '0');
   const s = String(gameState.secondsLeft % 60).padStart(2, '0');
   document.getElementById('hud-timer').textContent = `${m}:${s}`;
-  document.getElementById('hud-score').textContent = String(Math.max(0, gameState.score)).padStart(4, '0');
+  const runningTotal = Math.max(0, gameState.sessionScore + gameState.score);
+  document.getElementById('hud-score').textContent = String(runningTotal).padStart(4, '0');
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -567,13 +596,14 @@ function stopBeaconTone() {
 function triggerWin(wonder) {
   if (gameState.winTriggered) return;
   gameState.winTriggered = true;
-  gameState.score += Math.max(0, gameState.secondsLeft * 3);
+  const timeMultiplier = gameState.volumeOn ? 3 : 1.5;
+  gameState.score += Math.max(0, Math.round(gameState.secondsLeft * timeMultiplier));
   updateHUD();
   stopTimer(); stopSignalLoop(); stopAmbient(); stopRadarLoop(); stopFlavourCycle();
   playBeaconTone();
   setTimeout(() => {
     stopBeaconTone();
-    document.getElementById('win-time').textContent  = document.getElementById('hud-timer').textContent;
+    document.getElementById('win-time').textContent  = timeTaken();
     document.getElementById('win-score').textContent = String(gameState.score).padStart(4, '0');
     document.getElementById('win-desc').textContent  = '';
     showOverlay('siren-hunted');
@@ -583,7 +613,7 @@ function triggerWin(wonder) {
 function triggerFail() {
   stopTimer(); stopSignalLoop(); stopAmbient(); stopRadarLoop(); stopFlavourCycle();
   const wonder = gameState.currentWonder;
-  document.getElementById('fail-time').textContent  = document.getElementById('hud-timer').textContent;
+  document.getElementById('fail-time').textContent  = timeTaken();
   document.getElementById('fail-score').textContent = String(gameState.score).padStart(4, '0');
   document.getElementById('fail-desc').textContent  = wonder?.failText || '';
   showOverlay('hunt-failed');
@@ -594,7 +624,7 @@ function triggerFail() {
 ══════════════════════════════════════════════════════════════════ */
 function showOverlay(name) {
   if (name === 'leave-hunt') {
-    document.getElementById('quit-time').textContent  = document.getElementById('hud-timer').textContent;
+    document.getElementById('quit-time').textContent  = timeTaken();
     document.getElementById('quit-score').textContent = document.getElementById('hud-score').textContent;
     const wonder = gameState.currentWonder;
     document.getElementById('quit-desc').textContent  = wonder?.failText || '';
@@ -628,7 +658,15 @@ function quitToHome() {
   gameState.initToken++;
   stopTimer(); stopSignalLoop(); stopAmbient(); stopRadarLoop(); stopFlavourCycle();
   hideOverlay();
+  pageWonderQueue.shift(); // advance queue so quitting doesn't repeat the same wonder
   showScreen('screen-home');
+}
+
+function showInstructions() {
+  document.getElementById('instructions-modal').classList.remove('hidden');
+}
+function hideInstructions() {
+  document.getElementById('instructions-modal').classList.add('hidden');
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -669,7 +707,18 @@ function startTransmissionReveal() {
       }, 1000);
       return;
     }
-    typewriterLine(items[index].el, items[index].line, () => revealNext(index + 1));
+    typewriterLine(items[index].el, items[index].line, () => {
+      if (index === 1) {
+        const el = items[index].el;
+        const text = el.textContent;
+        const linkStart = text.indexOf('Share the game');
+        if (linkStart !== -1) {
+          el.innerHTML = text.slice(0, linkStart) +
+            '<a href="https://sirenhunter-game.vercel.app" target="_blank" rel="noopener" class="transmission-link">Share the game to spread the fun →</a>';
+        }
+      }
+      revealNext(index + 1);
+    });
   }
   revealNext(0);
 }
@@ -710,7 +759,7 @@ function setAudioMode(mode) {
   if (mode === 'sound') {
     gameState.volumeOn     = true;
     gameState.radarVisible = false;
-    if (gameState.ambientSound) gameState.ambientSound.play();
+    if (gameState.ambientSound && !gameState.ambientSound.playing()) gameState.ambientSound.play();
     pill.className = 'ctrl-pill sound-active';
     document.getElementById('radar-canvas').classList.add('hidden');
     stopRadarLoop();
@@ -739,7 +788,7 @@ function startFlavourCycle(wonder) {
     const line = lines[Math.floor(Math.random() * lines.length)];
     el.textContent = line.text;
     el.classList.remove('hidden');
-    el.classList.add('flavour-visible');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('flavour-visible')));
 
     gameState.flavourTimeout = setTimeout(() => {
       el.classList.remove('flavour-visible');

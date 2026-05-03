@@ -14,13 +14,13 @@
 </script>
 
   <!-- SEO -->
-  <title>Siren Hunter - 7 Wonders. 7 Sirens: Free Game</title>
+  <title>Siren Hunter - 7 Wonders, 7 Sirens to Hunt: Free Game</title>
   <meta name="description" content="Navigate the 7 Wonders of World in Google Street View to find hidden sirens. Free to play." />
   <meta name="keywords" content="siren hunter, 7 wonders game, street view game, exploration game, vibejam 2026" />
   <link rel="canonical" href="https://sirenhunter-game.vercel.app" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Siren Hunter - 7 Wonders. 7 Sirens: Free Game" />
+  <meta property="og:title" content="Siren Hunter - 7 Wonders, 7 Sirens to Hunt: Free Game" />
   <meta property="og:description" content="Navigate the 7 Wonders of World in Google Street View to find hidden sirens. Free to play." />
   <meta property="og:image" content="https://sirenhunter-game.vercel.app/images/og-cover.png" />
   <meta property="og:url" content="https://sirenhunter-game.vercel.app" />
@@ -28,7 +28,7 @@
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Siren Hunter - 7 Wonders. 7 Sirens: Free Game" />
+  <meta name="twitter:title" content="Siren Hunter - 7 Wonders, 7 Sirens to Hunt: Free Game" />
   <meta name="twitter:description" content="Navigate the 7 Wonders of World in Google Street View to find hidden sirens. Free to play." />
   <meta name="twitter:image" content="https://sirenhunter-game.vercel.app/images/og-cover.png" />
   <meta name="twitter:creator" content="@Mayank_Bishwas" />
@@ -44,6 +44,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
   <script>function onGoogleMapsReady() { window._mapsReady = true; }</script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCtQwVDajR5lePqlevtfPMvnEz9IJbGbEM&callback=onGoogleMapsReady" defer></script>
+  <script async src="https://vibej.am/2026/widget.js"></script>
 </head>
 <body>
 
@@ -70,9 +71,9 @@
 
     <button class="btn-primary" onclick="startSession()">Begin Hunt</button>
 
-    <p id="mobile-warning">⚠️ Mobile version of this game being built. While you can play it here, it's <strong>better experienced on a&nbsp;laptop/desktop</strong>.</p>
+    <button id="home-instructions-link" onclick="showInstructions()">ⓘ Instructions</button>
 
-    <p class="home-credit">Made for <a href="https://vibej.am/2026/" target="_blank" rel="noopener">VibeJam</a> by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+    <p class="home-credit">Made by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
   </div>
 
   <!-- ═══════════════════════════════════════════ -->
@@ -87,7 +88,7 @@
       <div id="loader-wonder-name">TAJ MAHAL, INDIA</div>
     </div>
 
-    <p class="home-credit">Made for <a href="https://vibej.am/2026/" target="_blank" rel="noopener">VibeJam</a> by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+    <p class="home-credit">Made by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
   </div>
 
   <!-- ═══════════════════════════════════════════ -->
@@ -129,6 +130,7 @@
     <!-- ── OVERLAY: SIREN HUNTED ── -->
     <div id="overlay-siren-hunted" class="game-overlay hidden">
       <div class="overlay-card green">
+        <button class="info-btn" onclick="showInstructions()" title="Instructions">ⓘ</button>
         <img src="images/logo.png" class="overlay-icon" />
         <h2 class="overlay-title">Siren Hunted</h2>
         <p class="overlay-stats">⏳ <span id="win-time">--:--</span> &nbsp; 💎 <span id="win-score">----</span></p>
@@ -136,14 +138,15 @@
         <a class="overlay-feedback" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Give feedback to Mayank</a>
       </div>
       <div class="overlay-btns">
-        <button class="btn-overlay" onclick="restartWonder()">Replay</button>
         <button class="btn-overlay" onclick="goNextWonder()">Next</button>
+        <button class="btn-overlay" onclick="restartWonder()">Retry</button>
       </div>
     </div>
 
     <!-- ── OVERLAY: HUNT FAILED ── -->
     <div id="overlay-hunt-failed" class="game-overlay hidden">
       <div class="overlay-card red">
+        <button class="info-btn" onclick="showInstructions()" title="Instructions">ⓘ</button>
         <span class="overlay-emoji">🚨</span>
         <h2 class="overlay-title">Hunt Failed</h2>
         <p class="overlay-stats">⏳ <span id="fail-time">00:00</span> &nbsp; 💎 <span id="fail-score">0000</span></p>
@@ -151,14 +154,15 @@
         <a class="overlay-feedback" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Give feedback to Mayank</a>
       </div>
       <div class="overlay-btns">
-        <button class="btn-overlay" onclick="quitToHome()">Home</button>
         <button class="btn-overlay" onclick="retryWonder()">Retry</button>
+        <button class="btn-overlay" onclick="quitToHome()">Home</button>
       </div>
     </div>
 
     <!-- ── OVERLAY: LEAVE HUNT ── -->
     <div id="overlay-leave-hunt" class="game-overlay hidden">
       <div class="overlay-card gold">
+        <button class="info-btn" onclick="showInstructions()" title="Instructions">ⓘ</button>
         <span class="overlay-emoji">🗿</span>
         <h2 class="overlay-title">Leave Hunt?</h2>
         <p class="overlay-stats">⏳ <span id="quit-time">--:--</span> &nbsp; 💎 <span id="quit-score">----</span></p>
@@ -192,11 +196,30 @@
       </div>
     </div>
 
-    <p class="home-credit">Made for <a href="https://vibej.am/2026/" target="_blank" rel="noopener">VibeJam</a> by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+    <p class="home-credit">Made by <a href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener">Mayank</a></p>
+  </div>
+
+  <!-- ── INSTRUCTIONS MODAL (body-level, z-index above all screens) ── -->
+  <div id="instructions-modal" class="hidden">
+    <div id="instructions-backdrop" onclick="hideInstructions()"></div>
+    <div id="instructions-card">
+      <button id="instructions-close" onclick="hideInstructions()">✕</button>
+      <h2 id="instructions-title">Instructions</h2>
+      <div id="instructions-body">
+        <p class="instr-section">Objective</p>
+        <p class="instr-text">You're dropped in one of the 7 Wonders of the World in Google Street View and hear a siren beeping. (Also get a map of the siren's direction relative to yours in Radar mode.) Navigate to find the source of the siren. The siren itself is invisible, but when within 15m, it becomes constant; keep moving till the hunt is over. You get 7 minutes in each location. Hunt all 7 to complete the game.</p>
+
+        <p class="instr-section">Controls</p>
+        <p class="instr-text">Laptop/Desktop: Click the on-screen arrows to move forward/turn, or use 'Arrow keys'. To look around, click-n-drag. Switch between Sound and Radar mode by clicking on the icon or pressing 'Space'. Press 'Escape' to pause or quit.</p><br />
+        <p class="instr-text">Mobile: Tap on-screen arrows to move. Drag to look around. Tap the Sound or Radar icon to switch modes. To pause, tap the power icon.</p>
+
+        <p class="instr-section">Note</p>
+        <p class="instr-text">- The siren beeps faster as you get closer. So does the radar.<br>- Using siren earns more score than using radar.<br>- For any issues/suggestions, contact<a class="instr-contact" href="https://linkedin.com/in/mayankbishwas" target="_blank" rel="noopener"> Mayank →</a></p>
+      </div>
+    </div>
   </div>
 
   <script src="data/wonders.js"></script>
   <script src="js/game.js"></script>
-  <script async src="https://vibej.am/2026/widget.js"></script>
 </body>
 </html>
