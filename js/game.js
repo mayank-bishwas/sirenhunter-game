@@ -629,7 +629,9 @@ function showOverlay(name) {
     document.getElementById('quit-time').textContent  = timeTaken();
     document.getElementById('quit-score').textContent = document.getElementById('hud-score').textContent;
     const wonder = gameState.currentWonder;
-    document.getElementById('quit-desc').textContent  = wonder?.failText || '';
+    const hints = wonder?.flavourLines?.filter(l => l.type === 'hint') || [];
+    const hint  = hints.length ? hints[Math.floor(Math.random() * hints.length)].text : '';
+    document.getElementById('quit-desc').textContent = hint;
   }
   document.querySelectorAll('.game-overlay').forEach(o => o.classList.add('hidden'));
   document.getElementById(`overlay-${name}`).classList.remove('hidden');
@@ -786,8 +788,16 @@ function startFlavourCycle(wonder) {
   const lines = wonder.flavourLines || [];
   if (!lines.length) return;
 
+  let queue = [];
+  const nextLine = () => {
+    if (!queue.length) {
+      queue = [...lines].sort(() => Math.random() - 0.5);
+    }
+    return queue.shift();
+  };
+
   const showLine = () => {
-    const line = lines[Math.floor(Math.random() * lines.length)];
+    const line = nextLine();
     el.textContent = line.text;
     el.classList.remove('hidden');
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('flavour-visible')));
